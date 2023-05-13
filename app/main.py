@@ -2,8 +2,8 @@ from fastapi import FastAPI
 import nltk
 
 from app.database import init_db
-from app.models import Note
 from app.routers import note_router, hashtag_router, user_router
+from app.config import global_settings
 
 
 app = FastAPI(
@@ -26,4 +26,4 @@ async def startup():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host=global_settings.host, port=8000)
