@@ -29,4 +29,11 @@ __all__ = [
     "UserBase",
     "UserCreate",
     "UserRead",
+    "UserLogin",
+    "UserRegister",
+    "Sentiment",
+    "SentimentAdviceLink",
+    "Advice",
+    "SentimentReadWithAdvices",
+    "SentimentRead",
 ]

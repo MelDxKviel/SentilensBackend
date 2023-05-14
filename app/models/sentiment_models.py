@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from sqlmodel import SQLModel, Relationship, Field
 from typing import Optional
 
@@ -32,3 +33,7 @@ class SentimentRead(SentimentBase):
 
 class SentimentReadWithAdvices(SentimentBase):
     advices: list[Advice] = []
+
+
+class Text(BaseModel):
+    text: str

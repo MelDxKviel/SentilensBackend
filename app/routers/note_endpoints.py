@@ -8,6 +8,7 @@ from app.auth import AuthHandler
 from app.database import get_session
 from app.models import Note, NoteRead, NoteReadWithHashtags, NoteCreate, Hashtag, NoteHashtagLink, Sentiment, \
     SentimentReadWithAdvices
+from app.models.sentiment_models import Text
 from app.utils import analyze_sentiment, get_sentiment
 
 note_router = APIRouter(
@@ -20,10 +21,16 @@ auth_handler = AuthHandler()
 
 @note_router.get("/", response_model=list[NoteReadWithHashtags])
 async def get_notes(session: Session = Depends(get_session),
+                    hashtag_title: str = None,
                     user_id=Depends(auth_handler.auth_wrapper)):
-    notes = session.exec(
-        select(Note).where(Note.owner_id == user_id).order_by(Note.created_at)
-    ).all()
+    if hashtag_title:
+        notes = session.exec(
+            select(Note).where(Note.owner_id == user_id).where(Note.hashtags.any(Hashtag.title == hashtag_title))
+        ).all()
+    else:
+        notes = session.exec(
+            select(Note).where(Note.owner_id == user_id).order_by(Note.created_at)
+        ).all()
     return notes
 
 
@@ -167,16 +174,15 @@ async def analyze_sentiment_by_note(note_id: uuid_pkg.UUID, session: Session = D
     ).first()
     if not db_note:
         raise HTTPException(status_code=404, detail="Note not found")
-    mood = get_sentiment(db_note.content)
     db_sentiment = session.exec(
-        select(Sentiment).where(Sentiment.title == mood)
+        select(Sentiment).where(Sentiment.title == db_note.sentiment_id)
     ).first()
     return SentimentReadWithAdvices.from_orm(db_sentiment)
 
 
-@note_router.get("/analyze-by-text", response_model=SentimentReadWithAdvices)
-async def analyze_sentiment_by_text(text: str, session: Session = Depends(get_session)):
-    mood = analyze_sentiment(text)
+@note_router.post("/analyze-by-text", response_model=SentimentReadWithAdvices)
+async def analyze_sentiment_by_text(text: Text, session: Session = Depends(get_session)):
+    mood = get_sentiment(text.text)
     db_sentiment = session.exec(
         select(Sentiment).where(Sentiment.title == mood)
     ).first()
