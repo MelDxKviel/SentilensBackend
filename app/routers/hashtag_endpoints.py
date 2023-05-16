@@ -19,7 +19,7 @@ auth_handler = AuthHandler()
 async def get_hashtags(session: Session = Depends(get_session),
                        user_id=Depends(auth_handler.auth_wrapper)):
     hashtags = session.exec(
-        select(Hashtag).where(Hashtag.owner_uuid == user_id).order_by(Hashtag.title)
+        select(Hashtag).where(Hashtag.owner_id == user_id).order_by(Hashtag.title)
     ).all()
     return hashtags
 
@@ -28,7 +28,7 @@ async def get_hashtags(session: Session = Depends(get_session),
 async def get_hashtag(hashtag_id: uuid_pkg.UUID, session: Session = Depends(get_session),
                       user_id=Depends(auth_handler.auth_wrapper)):
     hashtag = session.exec(
-        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_uuid == user_id)
+        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_id == user_id)
     )
     if not hashtag:
         raise HTTPException(status_code=404, detail="Hashtag not found")
@@ -49,7 +49,7 @@ async def create_hashtag(hashtag: HashtagCreate, session: Session = Depends(get_
 async def delete_hashtag(hashtag_id: uuid_pkg.UUID, session: Session = Depends(get_session),
                          user_id=Depends(auth_handler.auth_wrapper)):
     hashtag = session.exec(
-        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_uuid == user_id)
+        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_id == user_id)
     ).first()
     if not hashtag:
         raise HTTPException(status_code=404, detail="Hashtag not found")
@@ -62,7 +62,7 @@ async def delete_hashtag(hashtag_id: uuid_pkg.UUID, session: Session = Depends(g
 async def update_hashtag(hashtag_id: uuid_pkg.UUID, hashtag: HashtagCreate, session: Session = Depends(get_session),
                          user_id=Depends(auth_handler.auth_wrapper)):
     db_hashtag = session.exec(
-        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_uuid == user_id)
+        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_id == user_id)
     ).first()
     if not db_hashtag:
         raise HTTPException(status_code=404, detail="Hashtag not found")
