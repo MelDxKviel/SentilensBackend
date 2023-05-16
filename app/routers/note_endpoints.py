@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
+from sqlalchemy.exc import IntegrityError
 
 from app.auth import AuthHandler
 from app.database import get_session
@@ -63,7 +64,7 @@ async def add_note_hashtag(note_id: uuid_pkg.UUID, hashtag_id: uuid_pkg.UUID, se
         select(NoteHashtagLink)
     ).all()
     if any(link.note_uuid == note_id and link.hashtag_uuid for link in links):
-        raise HTTPException(status_code=418, detail="Hashtag already assigned")
+        raise HTTPException(status_code=400, detail="Hashtag already assigned")
     note_hashtag_link = NoteHashtagLink(note_id=note.uuid, hashtag_id=hashtag.uuid)
     session.add(note_hashtag_link)
     session.commit()
@@ -100,8 +101,12 @@ async def create_note(note: NoteCreate, session: Session = Depends(get_session),
     db_note.mood_value = analyze_sentiment(db_note.content)
     db_note.owner_id = user_id
 
-    session.add(db_note)
-    session.commit()
+    try:
+        session.add(db_note)
+        session.commit()
+        session.refresh(db_note)
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="UUID already assigned")
 
     for hashtag_id in hashtags_ids:
         note_hashtag_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=hashtag_id)
