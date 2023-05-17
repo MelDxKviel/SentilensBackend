@@ -24,4 +24,4 @@ class HashtagReadWithNotes(HashtagRead):
 
 
 class HashtagCreate(HashtagBase):
-    pass
+    uuid: Optional[uuid_pkg.UUID]
