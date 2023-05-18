@@ -1,11 +1,15 @@
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from googletrans import Translator
-from app.models import Note
 
 
 def analyze_sentiment(text):
-    translator = Translator()
-    translated_text = translator.translate(text).text
+    while True:
+        try:
+            translator = Translator()
+            translated_text = translator.translate(text).text
+            break
+        except TypeError:
+            pass
     sid = SentimentIntensityAnalyzer()
     return sid.polarity_scores(translated_text)['compound']
 
