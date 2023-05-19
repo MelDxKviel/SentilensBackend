@@ -87,7 +87,7 @@ async def create_note(note: NoteCreate, session: Session = Depends(get_session),
         ).first()) in existing_hashtags:
             hashtags_ids.append(ht.uuid)
         else:
-            new_hashtag = Hashtag(title=hashtag.title, owner_id=user_id)
+            new_hashtag = Hashtag(title=hashtag.title, owner_id=user_id, uuid=hashtag.uuid)
             hashtags_for_create.append(new_hashtag)
 
     for hashtag in hashtags_for_create:
