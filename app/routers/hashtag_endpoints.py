@@ -39,6 +39,7 @@ async def get_hashtag(hashtag_id: uuid_pkg.UUID, session: Session = Depends(get_
 async def create_hashtag(hashtag: HashtagCreate, session: Session = Depends(get_session),
                          user_id=Depends(auth_handler.auth_wrapper)):
     new_hashtag = Hashtag.from_orm(hashtag)
+    new_hashtag.owner_id = user_id
     session.add(new_hashtag)
     session.commit()
     session.refresh(new_hashtag)
