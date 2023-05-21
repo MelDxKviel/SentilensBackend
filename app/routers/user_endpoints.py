@@ -4,6 +4,7 @@ from sqlmodel import select, Session
 from app.database import get_session
 from app.auth.auth import AuthHandler, Token
 from app.models import User, UserRead, UserLogin, UserRegister, Note
+from app.utils import get_sentiment
 
 user_router = APIRouter(
     prefix="/user",
@@ -40,7 +41,7 @@ async def register_user(user: UserRegister, session: Session = Depends(get_sessi
 Мы уверены, что наше приложение поможет вам структурировать ваши мысли, получить больше понимания своих эмоций и быть более организованными в повседневной жизни. Не стесняйтесь делиться своими заметками, и вы обнаружите, что ваше путешествие к саморазвитию и эмоциональному благополучию станет еще более интересным и осознанным.
 
 Спасибо, что выбрали наше приложение! Мы желаем вам вдохновения, продуктивности и гармонии в каждой заметке, которую вы создаете.''',
-                        title="Добро пожаловать!")
+                        title="Добро пожаловать!", sentiment_id="Позитивное")
     session.add(example_note)
     session.commit()
     return UserRead.from_orm(db_user)
