@@ -69,7 +69,30 @@ async def add_note_hashtag(note_id: uuid_pkg.UUID, hashtag_id: uuid_pkg.UUID, se
     session.add(note_hashtag_link)
     session.commit()
     session.refresh(note)
-    return NoteReadWithHashtags.from_orm(note)
+    return note
+
+
+@note_router.post("/{note_id}/delete_hashtag", response_model=NoteReadWithHashtags)
+async def delete_note_hashtag(note_id: uuid_pkg.UUID, hashtag_id: uuid_pkg.UUID,
+                              session: Session = Depends(get_session),
+                              user_id=Depends(auth_handler.auth_wrapper)):
+    note = session.exec(
+        select(Note).where(Note.uuid == note_id).where(Note.owner_id == user_id)
+    ).first()
+    hashtag = session.exec(
+        select(Hashtag).where(Hashtag.uuid == hashtag_id).where(Hashtag.owner_id == user_id)
+    ).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if not hashtag:
+        raise HTTPException(status_code=404, detail="Hashtag not found")
+    link_for_delete = session.exec(
+        select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == note.uuid).where(
+            NoteHashtagLink.hashtag_uuid == hashtag.uuid)
+    )
+    session.delete(link_for_delete)
+    session.refresh(note)
+    return note
 
 
 @note_router.post("/", response_model=NoteReadWithHashtags)
@@ -129,7 +152,7 @@ async def delete_note(note_id: uuid_pkg.UUID, session: Session = Depends(get_ses
     return {"message": "Note deleted"}
 
 
-@note_router.put("/{note_id}", response_model=NoteRead)
+@note_router.put("/{note_id}", response_model=NoteReadWithHashtags)
 async def update_note(note_id: uuid_pkg.UUID, note: NoteCreate, session: Session = Depends(get_session),
                       user_id=Depends(auth_handler.auth_wrapper)):
     db_note = session.exec(
@@ -144,13 +167,56 @@ async def update_note(note_id: uuid_pkg.UUID, note: NoteCreate, session: Session
     db_note.sentiment_id = get_sentiment(db_note.content)
     db_note.updated_at = datetime.now()
 
+    existing_hashtags = session.exec(
+        select(Hashtag).where(Hashtag.owner_id == user_id).order_by(Hashtag.title)
+    ).all()
+    updated_hashtag_ids = []
+    hashtags_for_create = []
+
+    for hashtag in note.hashtags:
+        if (ht := session.exec(
+                select(Hashtag).where(Hashtag.title == hashtag.title).where(Hashtag.owner_id == user_id)
+        ).first()) in existing_hashtags:
+            updated_hashtag_ids.append(ht.uuid)
+        else:
+            new_hashtag = Hashtag(title=hashtag.title, owner_id=user_id, uuid=hashtag.uuid)
+            hashtags_for_create.append(new_hashtag)
+
+    for hashtag in hashtags_for_create:
+        try:
+            session.add(hashtag)
+            session.commit()
+            session.refresh(hashtag)
+            updated_hashtag_ids.append(hashtag.uuid)
+        except IntegrityError:
+            raise HTTPException(status_code=400, detail="UUID already assigned")
+
+    linked_hashtags = session.exec(
+        select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == note_id)
+    ).all()
+
+    for tag_id in updated_hashtag_ids:
+        if tag_id not in linked_hashtags:
+            new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
+            session.add(new_link)
+            session.commit()
+
+    for tag in linked_hashtags:
+        tag_id = tag.hashtag_uuid
+        if tag_id not in updated_hashtag_ids:
+            link = session.exec(
+                select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == db_note.uuid).where(
+                    NoteHashtagLink.hashtag_uuid == tag_id)
+            ).first()
+            session.delete(link)
+
     session.add(db_note)
     session.commit()
     session.refresh(db_note)
     return db_note
 
 
-@note_router.patch("/{note_id}", response_model=NoteRead)
+@note_router.patch("/{note_id}", response_model=NoteReadWithHashtags)
 async def update_note_partial(note_id: uuid_pkg.UUID, note: NoteCreate, session: Session = Depends(get_session),
                               user_id=Depends(auth_handler.auth_wrapper)):
     db_note = session.exec(
@@ -164,6 +230,50 @@ async def update_note_partial(note_id: uuid_pkg.UUID, note: NoteCreate, session:
         db_note.content = note.content
         db_note.mood_value = analyze_sentiment(note.content)
         db_note.sentiment_id = get_sentiment(db_note.content)
+
+    existing_hashtags = session.exec(
+        select(Hashtag).where(Hashtag.owner_id == user_id).order_by(Hashtag.title)
+    ).all()
+    updated_hashtag_ids = []
+    hashtags_for_create = []
+
+    for hashtag in note.hashtags:
+        if (ht := session.exec(
+                select(Hashtag).where(Hashtag.title == hashtag.title).where(Hashtag.owner_id == user_id)
+        ).first()) in existing_hashtags:
+            updated_hashtag_ids.append(ht.uuid)
+        else:
+            new_hashtag = Hashtag(title=hashtag.title, owner_id=user_id, uuid=hashtag.uuid)
+            hashtags_for_create.append(new_hashtag)
+
+    for hashtag in hashtags_for_create:
+        try:
+            session.add(hashtag)
+            session.commit()
+            session.refresh(hashtag)
+            updated_hashtag_ids.append(hashtag.uuid)
+        except IntegrityError:
+            raise HTTPException(status_code=400, detail="UUID already assigned")
+
+    linked_hashtags = session.exec(
+        select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == note_id)
+    ).all()
+
+    for tag_id in updated_hashtag_ids:
+        if tag_id not in linked_hashtags:
+            new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
+            session.add(new_link)
+            session.commit()
+
+    for tag in linked_hashtags:
+        tag_id = tag.hashtag_uuid
+        if tag_id not in updated_hashtag_ids:
+            link = session.exec(
+                select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == db_note.uuid).where(
+                    NoteHashtagLink.hashtag_uuid == tag_id)
+            ).first()
+            session.delete(link)
+
     db_note.updated_at = datetime.now()
     session.add(db_note)
     session.commit()
