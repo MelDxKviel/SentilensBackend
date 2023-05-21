@@ -194,21 +194,13 @@ async def update_note(note_id: uuid_pkg.UUID, note: NoteCreate, session: Session
     linked_hashtags = session.exec(
         select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == note_id)
     ).all()
+    for link in linked_hashtags:
+        session.delete(link)
 
     for tag_id in updated_hashtag_ids:
-        if tag_id not in linked_hashtags:
-            new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
-            session.add(new_link)
-            session.commit()
-
-    for tag in linked_hashtags:
-        tag_id = tag.hashtag_uuid
-        if tag_id not in updated_hashtag_ids:
-            link = session.exec(
-                select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == db_note.uuid).where(
-                    NoteHashtagLink.hashtag_uuid == tag_id)
-            ).first()
-            session.delete(link)
+        new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
+        session.add(new_link)
+        session.commit()
 
     session.add(db_note)
     session.commit()
@@ -258,21 +250,12 @@ async def update_note_partial(note_id: uuid_pkg.UUID, note: NoteCreate, session:
     linked_hashtags = session.exec(
         select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == note_id)
     ).all()
+    session.delete(linked_hashtags)
 
     for tag_id in updated_hashtag_ids:
-        if tag_id not in linked_hashtags:
-            new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
-            session.add(new_link)
-            session.commit()
-
-    for tag in linked_hashtags:
-        tag_id = tag.hashtag_uuid
-        if tag_id not in updated_hashtag_ids:
-            link = session.exec(
-                select(NoteHashtagLink).where(NoteHashtagLink.note_uuid == db_note.uuid).where(
-                    NoteHashtagLink.hashtag_uuid == tag_id)
-            ).first()
-            session.delete(link)
+        new_link = NoteHashtagLink(note_uuid=db_note.uuid, hashtag_uuid=tag_id)
+        session.add(new_link)
+        session.commit()
 
     db_note.updated_at = datetime.now()
     session.add(db_note)
